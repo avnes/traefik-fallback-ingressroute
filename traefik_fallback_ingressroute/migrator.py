@@ -9,6 +9,8 @@ import os
 import subprocess  # nosec
 from typing import Any, Dict, List, Optional
 
+import yaml
+
 
 class IngressMigrator:
     # pylint: disable=no-else-return
@@ -201,9 +203,12 @@ class IngressMigrator:
         flat_list = [entry for sublist in routes for entry in sublist]
         fallback: dict = {
             "apiVersion": "traefik.containo.us/v1alpha1",
-            "kind": "IngressMigrator",
+            "kind": "IngressRoute",
             "metadata": {"name": "traefik-v1-fallback", "namespace": "kube-system"},
             "spec": {"entryPoints": ["web"], "routes": flat_list},
         }
+        print(fallback)
         with open("ingressroute.json.tmp", "w") as json_file:
             json.dump(fallback, json_file, indent=4, sort_keys=True)
+        with open("ingressroute.yaml.tmp", "w") as yaml_file:
+            yaml.dump(fallback, yaml_file)
