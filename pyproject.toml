@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "traefik-fallback-ingressroute"
+version = "0.1.0"
+description = ""
+authors = ["Audun Nes <aunes@dfds.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = "^21.6b0"
+mypy = "^0.910"
+flake8 = "^3.9.2"
+pylint = "^2.9.2"
+pre-commit = "^2.13.0"
+bandit = "^1.7.0"
+isort = "^5.9.1"
+pytest-cov = "^2.12.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.pylint.format]
+max-line-length=88
