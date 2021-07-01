@@ -133,3 +133,5 @@ dmypy.json
 
 # Misc files
 *.tmp
+**/tmp/*.json
+**/tmp/*.yaml

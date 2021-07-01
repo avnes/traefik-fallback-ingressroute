@@ -34,6 +34,10 @@ class IngressMigrator:
         )
         self.log_level: int = level
         self.generate_new_spec = generate_new_spec
+        try:
+            os.mkdir("tmp")
+        except FileExistsError:
+            pass
 
     def _get_traefik_v1_ingress_spec(self) -> list:
         """
@@ -44,9 +48,9 @@ class IngressMigrator:
             os.environ.get("KUBECONFIG")
             command: str = "kubectl get ingress -A -o json"
             command_list: list = command.split(" ")
-            with open("ingresses.json.tmp", "w") as out_file:
+            with open("tmp/ingresses.json", "w") as out_file:
                 subprocess.run(command_list, stdout=out_file, check=True)  # nosec
-        with open("ingresses.json.tmp") as json_file:
+        with open("tmp/ingresses.json") as json_file:
             data: dict = json.load(json_file)
             items: Optional[List] = data.get("items")
         if items is not None:
@@ -207,8 +211,7 @@ class IngressMigrator:
             "metadata": {"name": "traefik-v1-fallback", "namespace": "kube-system"},
             "spec": {"entryPoints": ["web"], "routes": flat_list},
         }
-        print(fallback)
-        with open("ingressroute.json.tmp", "w") as json_file:
+        with open("tmp/ingressroute.json", "w") as json_file:
             json.dump(fallback, json_file, indent=4, sort_keys=True)
-        with open("ingressroute.yaml.tmp", "w") as yaml_file:
+        with open("tmp/ingressroute.yaml", "w") as yaml_file:
             yaml.dump(fallback, yaml_file)
