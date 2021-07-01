@@ -205,8 +205,3 @@ class IngressMigrator:
         }
         with open("ingressroute.json.tmp", "w") as json_file:
             json.dump(fallback, json_file, indent=4, sort_keys=True)
-
-
-if __name__ == "__main__":
-    ingress_migrator: IngressMigrator = IngressMigrator()
-    ingress_migrator.get_fallback_ingressroute()
