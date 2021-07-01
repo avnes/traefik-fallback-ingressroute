@@ -18,25 +18,27 @@ class IngressMigrator:
     A class that represent a IngressMigrator
     """
 
-    def __init__(self, level: int = logging.INFO) -> None:
+    def __init__(
+        self, generate_new_spec: bool = True, level: int = logging.INFO
+    ) -> None:
         """
         Class constructor.
         :param level: The log level. Default: logging.INFO
+         :param generate_new_spec: Call the k8s cluster again and do a new export
+        of ingresses.
         """
         logging.basicConfig(
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=level
         )
         self.log_level: int = level
+        self.generate_new_spec = generate_new_spec
 
-    @staticmethod
-    def _get_traefik_v1_ingress_spec(generate_new_spec: bool = False) -> list:
+    def _get_traefik_v1_ingress_spec(self) -> list:
         """
         Get all ingresses and return a list with all the specifications in JSON format.
-        :param generate_new_spec: Call the k8s cluster again and do a new export
-        of ingresses
         :return: list
         """
-        if generate_new_spec:
+        if self.generate_new_spec:
             os.environ.get("KUBECONFIG")
             command: str = "kubectl get ingress -A -o json"
             command_list: list = command.split(" ")
