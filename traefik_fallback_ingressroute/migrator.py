@@ -81,8 +81,8 @@ class IngressMigrator:
     def _get_rule_match(path: dict, host: str) -> str:
         """
         Calculate the match expression in the IngressRoute rule
-        :param path:
-        :param host:
+        :param path: A path branch in the Ingress spec (if it exist).
+        :param host: The hostname mentioned in the Ingress rule.
         :return: str
         """
         uri = path.get("path", "NO_PATH_KEY")
