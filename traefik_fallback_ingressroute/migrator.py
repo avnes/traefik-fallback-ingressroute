@@ -21,12 +21,20 @@ class IngressMigrator:
     """
 
     def __init__(
-        self, generate_new_spec: bool = True, level: int = logging.INFO
+        self,
+        generate_new_spec: bool = True,
+        fallback_namespace: str = "kube-system",
+        middleware_namespace: str = "traefik-middleware",
+        level: int = logging.INFO,
     ) -> None:
         """
         Class constructor.
+        :param generate_new_spec: Call the k8s cluster again and do a new export
+        :param fallback_namespace: The namespace to store the
+        Traefik fallback Ingressroute. Default: kube-system
+        :param middleware_namespace: The namespace to store the
+        Traefik v2 Middlewares. Default: traefik-middleware
         :param level: The log level. Default: logging.INFO
-         :param generate_new_spec: Call the k8s cluster again and do a new export
         of ingresses.
         """
         logging.basicConfig(
@@ -34,6 +42,8 @@ class IngressMigrator:
         )
         self.log_level: int = level
         self.generate_new_spec = generate_new_spec
+        self.fallback_namespace = fallback_namespace
+        self.middleware_namespace = middleware_namespace
         try:
             os.mkdir("tmp")
         except FileExistsError:
@@ -138,7 +148,12 @@ class IngressMigrator:
                         rule_match: str = self._get_rule_match(path, str(host))
                         if rule_match:
                             route["match"] = rule_match
-                        route["middlewares"] = [{"name": f"{name}-mw"}]
+                        route["middlewares"] = [
+                            {
+                                "name": f"{name}-mw",
+                                "namespace": self.middleware_namespace,
+                            }
+                        ]
                         route["priority"] = priority
                         service_entry: dict = self._get_service_entry(
                             backend, namespace
@@ -189,10 +204,13 @@ class IngressMigrator:
             if rules is not None:
                 self._get_middleware(str(name), rules)
 
-    def get_fallback_ingressroute(self) -> None:
+    def get_fallback_ingressroute(self, output: str = "yaml") -> None:
         """
         Generates a temporary JSON file that can be used to create one IngressRoute
         from all Ingresses.
+
+        :param output: Which output to store the new Ingressroute in.
+        Options: [yaml, json]. Default: yaml
         """
         routes: list = []
         items: list = self._get_traefik_v1_ingress_spec()
@@ -208,10 +226,15 @@ class IngressMigrator:
         fallback: dict = {
             "apiVersion": "traefik.containo.us/v1alpha1",
             "kind": "IngressRoute",
-            "metadata": {"name": "traefik-v1-fallback", "namespace": "kube-system"},
+            "metadata": {
+                "name": "traefik-v1-fallback",
+                "namespace": self.fallback_namespace,
+            },
             "spec": {"entryPoints": ["web"], "routes": flat_list},
         }
-        with open("tmp/ingressroute.json", "w") as json_file:
-            json.dump(fallback, json_file, indent=4, sort_keys=True)
-        with open("tmp/ingressroute.yaml", "w") as yaml_file:
-            yaml.dump(fallback, yaml_file)
+        if output.upper() == "JSON":
+            with open("tmp/ingressroute.json", "w") as json_file:
+                json.dump(fallback, json_file, indent=4, sort_keys=True)
+        else:
+            with open("tmp/ingressroute.yaml", "w") as yaml_file:
+                yaml.dump(fallback, yaml_file)
