@@ -1,6 +1,6 @@
 # Migrate Traefik v1 ingresses over to Traefik v2 ingressroutes with fallback
 
-**Warning: This is provided as-is. Review the files generated, and you are responsible to review and assess them to your own k8s cluster before potentially applying them.**
+**Warning: This is provided as-is. You are responsible for reviewing and assessing the files generated, before potentially applying them to your own k8s cluster.**
 
 ## Usage
 
