@@ -96,13 +96,14 @@ class IngressMigrator:
         return service_entry
 
     @staticmethod
-    def _get_rule_match(path: dict, host: str) -> str:
+    def _get_rule_match(path: dict, host: str) -> tuple:
         """
         Calculate the match expression in the IngressRoute rule
         :param path: A path branch in the Ingress spec (if it exist).
         :param host: The hostname mentioned in the Ingress rule.
-        :return: str
+        :return: tuple
         """
+        need_middleware: bool = True
         uri = path.get("path", "NO_PATH_KEY")
         _host_match: str = ""
         if host == "NO_HOST_KEY":
@@ -111,20 +112,22 @@ class IngressMigrator:
             _host_match = f"Host(`{host}`)"
         _path_match: str = ""
         if uri == "NO_PATH_KEY":
-            pass
+            need_middleware = False
         elif uri == "/":
             _path_match = "Path(`/`)"
+            need_middleware = False
         else:
             _path_match = f"PathPrefix(`{uri}`)"
         if uri == "NO_PATH_KEY":
-            return _host_match
+            return _host_match, need_middleware
         else:
-            return f"{_host_match} && {_path_match}"
+            return f"{_host_match} && {_path_match}", need_middleware
 
     def _get_routes(
         self, name: str, namespace: str, rules: list, priority: int = 2
     ) -> list:
         # pylint: disable=no-else-return
+        # pylint: disable=too-many-locals
         """
         Get all possible routes for the new ingressroute definition
         :param name: The name of the ingress.
@@ -145,15 +148,18 @@ class IngressMigrator:
                     for path in paths:
                         route: dict = {"kind": "Rule"}
                         backend: Optional[Dict] = path.get("backend")
-                        rule_match: str = self._get_rule_match(path, str(host))
+                        rule_match_cases: tuple = self._get_rule_match(path, str(host))
+                        rule_match: str = rule_match_cases[0]
+                        need_middleware: bool = rule_match_cases[1]
                         if rule_match:
                             route["match"] = rule_match
-                        route["middlewares"] = [
-                            {
-                                "name": f"{name}-mw",
-                                "namespace": self.middleware_namespace,
-                            }
-                        ]
+                        if need_middleware:
+                            route["middlewares"] = [
+                                {
+                                    "name": f"{name}-mw",
+                                    "namespace": self.middleware_namespace,
+                                }
+                            ]
                         route["priority"] = priority
                         service_entry: dict = self._get_service_entry(
                             backend, namespace
@@ -181,18 +187,22 @@ class IngressMigrator:
                 if paths is not None:
                     for path in paths:
                         uri: str = path.get("path")
-                        prefixes.append(uri)
+                        if uri != "/":
+                            prefixes.append(uri)
         middleware: dict = {
             "apiVersion": "traefik.containo.us/v1alpha1",
             "kind": "Middleware",
             "metadata": {"name": f"{name}-mw", "namespace": "kube-system"},
             "spec": {"stripPrefix": {"prefixes": prefixes}},
         }
-        return middleware
+        if prefixes:
+            return middleware
+        else:
+            return {}
 
-    def get_all_middlewares(self):
+    def get_all_middlewares(self, output: str = "yaml") -> None:
         """
-        Generates a temporary JSON file that can be used to create
+        Generates many files that can be used to create
         Traefik v2 Middleware custom resources for all Ingresses.
         """
         items: list = self._get_traefik_v1_ingress_spec()
@@ -202,11 +212,18 @@ class IngressMigrator:
             name: Optional[Any] = metadata.get("name")
             rules: Optional[List] = spec.get("rules")
             if rules is not None:
-                self._get_middleware(str(name), rules)
+                middleware: dict = self._get_middleware(str(name), rules)
+                if middleware:
+                    if output.upper() == "JSON":
+                        with open(f"tmp/middleware-{name}.json", "w") as json_file:
+                            json.dump(middleware, json_file, indent=4, sort_keys=True)
+                    else:
+                        with open(f"tmp/middleware-{name}.yaml", "w") as yaml_file:
+                            yaml.dump(middleware, yaml_file)
 
     def get_fallback_ingressroute(self, output: str = "yaml") -> None:
         """
-        Generates a temporary JSON file that can be used to create one IngressRoute
+        Generates a temporary file that can be used to create one IngressRoute
         from all Ingresses.
 
         :param output: Which output to store the new Ingressroute in.
